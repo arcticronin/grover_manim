@@ -13,6 +13,7 @@ from manim import (
     Create,
     DashedLine,
     Dot,
+    DecimalNumber,
     FadeIn,
     FadeOut,
     Indicate,
@@ -35,7 +36,7 @@ from manim import (
 )
 from manim_slides import Slide
 
-from .model import N, TARGET, bloch_vector, diffuse, oracle, search_plane, uniform_state
+from .model import N, TARGET, diffuse, oracle, qubit_amplitudes, search_plane, uniform_state
 from .notes import NOTES
 
 BG = "#0B1120"
@@ -118,105 +119,104 @@ class GroverPresentation(Slide):
         self.geometry()
 
     def qubit_intro(self):
-        """Front view of the Bloch sphere, with four click-controlled builds.
-
-        The x-z meridian is a circle. Its coordinates are Bloch components,
-        not alpha and beta. Z is shown by its endpoints because its continuous
-        path goes out of this viewing plane. No persistent updaters are used.
-        """
+        """Full-circle motion: superposition, Born probabilities, and signed amplitudes."""
         self.cue("qubit_basis")
         self.chrome = self.header(
-            0, "A qubit on the Bloch sphere.",
-            "A flat front view: |0⟩ north, |1⟩ south; superpositions lie between the poles.",
+            0, "From a bit to a qubit.",
+            "A bit stores 0 or 1. A qubit can be prepared in a superposition.",
         )
-        center, radius = np.array([-3.6, -0.15, 0.0]), 1.55
+        center, radius = np.array([-3.6, -0.15, 0.0]), 1.6
         circle = Circle(radius=radius, color=GRID, stroke_width=2).move_to(center)
-        axes = VGroup(
-            Line(center + LEFT*1.7, center + RIGHT*1.7, color=GRID),
-            Line(center + DOWN*1.7, center + UP*1.7, color=GRID),
-            MathTex(r"|0\rangle", color=BLUE, font_size=32).move_to([-3.6, 1.83, 0]),
-            MathTex(r"|1\rangle", color=GREEN, font_size=32).move_to([-3.6, -2.1, 0]),
-            MathTex(r"|+\rangle", color=YELLOW, font_size=30).move_to([-1.54, -0.15, 0]),
-            MathTex(r"|-\rangle", color=YELLOW, font_size=30).move_to([-5.67, -0.15, 0]),
+        poles = VGroup(
+            MathTex(r"|0\rangle", color=BLUE, font_size=36).move_to([-3.6, 1.9, 0]),
+            MathTex(r"|1\rangle", color=GREEN, font_size=36).move_to([-3.6, -2.2, 0]),
         )
-        legend = text("x–z front view · y is perpendicular to the screen", 17, MUTED).move_to([-3.6, -2.54, 0])
-        panel = RoundedRectangle(width=5.9, height=4.45, corner_radius=0.16,
-                                 fill_color=PANEL, fill_opacity=1,
-                                 stroke_color=GRID, stroke_width=1).move_to([3.1, -0.15, 0])
-        formula = at_left(MathTex(
-            r"|\psi\rangle=\cos\frac\theta2|0\rangle+e^{i\phi}\sin\frac\theta2|1\rangle",
-            font_size=30), 0.55, 1.66)
+        vector = VGroup(
+            Arrow(center, center + UP*radius, buff=0, color=YELLOW, stroke_width=5),
+            Dot(center + UP*radius, radius=0.065, color=YELLOW),
+        )
+        readouts = VGroup()
+        numbers, bars = [], []
+        left, track_width = 0.8, 4.65
+        for i, (color, y) in enumerate([(BLUE, 1.15), (GREEN, -0.85)]):
+            box = RoundedRectangle(width=5.8, height=1.8, corner_radius=0.15,
+                                   stroke_color=GRID, stroke_width=1,
+                                   fill_color=PANEL, fill_opacity=1).move_to([3.15, y, 0])
+            label = at_left(text(f"Measuring {i}", 25, color, weight="BOLD"), left, y+0.55)
+            amp_label = at_left(text("Amplitude", 19, MUTED), left, y)
+            chance_label = at_left(text("Probability", 19, MUTED), 3.3, y)
+            amp = DecimalNumber(1-i, num_decimal_places=3, include_sign=True, font_size=30, color=color)
+            chance = DecimalNumber(100*(1-i), num_decimal_places=1, unit=r"\%",
+                                   font_size=30, color=color)
+            amp_anchor = np.array([left, y-0.43, 0])
+            chance_anchor = np.array([3.3, y-0.43, 0])
+            amp.move_to(amp_anchor, aligned_edge=LEFT)
+            chance.move_to(chance_anchor, aligned_edge=LEFT)
+            track = Rectangle(width=track_width, height=0.12, stroke_width=0,
+                              fill_color=GRID, fill_opacity=1).move_to([left+track_width/2, y-0.76, 0])
+            bar = track.copy().set_fill(color)
+            readouts.add(box, label, amp_label, chance_label, amp, chance, track, bar)
+            numbers.append((amp, chance, amp_anchor, chance_anchor))
+            bars.append((bar, y-0.76, color))
 
-        def indicator(theta, phi=0):
-            # Project the three-dimensional Bloch vector into screen x,z.
-            x, _, z = bloch_vector(theta, phi)
-            tip = center + radius*np.array([x, z, 0])
-            return VGroup(Arrow(center, tip, buff=0, color=YELLOW, stroke_width=5),
-                          Dot(tip, radius=0.055, color=YELLOW))
+        def update_values(theta):
+            amplitudes = qubit_amplitudes(theta)
+            for i, amplitude in enumerate(amplitudes):
+                probability = float(abs(amplitude)**2)
+                amp, chance, amp_anchor, chance_anchor = numbers[i]
+                rounded = round(float(amplitude), 3)
+                amp.set_value(rounded if rounded else 0.0).move_to(amp_anchor, aligned_edge=LEFT)
+                chance.set_value(100*probability).move_to(chance_anchor, aligned_edge=LEFT)
+                bar, y, color = bars[i]
+                width = max(track_width*probability, 1e-6)
+                bar.become(Rectangle(width=width, height=0.12, stroke_width=0,
+                                     fill_color=color, fill_opacity=1 if probability > 1e-12 else 0)
+                           .move_to([left+width/2, y, 0]))
 
-        def amplitudes(alpha, beta, state):
-            return VGroup(
-                at_left(MathTex(state, font_size=32, color=YELLOW), 0.55, 0.92),
-                at_left(MathTex(alpha, font_size=30, color=BLUE), 0.55, 0.2),
-                at_left(MathTex(beta, font_size=30, color=GREEN), 3.2, 0.2),
-            )
-
-        def probabilities():
-            # Exact 50/50 bars, anchored to fixed left edges and equal tracks.
-            group = VGroup()
-            for y, color, expression in [(-0.75, BLUE, r"P(0)=|\alpha|^2=\frac12=50\%"),
-                                         (-1.65, GREEN, r"P(1)=|\beta|^2=\frac12=50\%")]:
-                group.add(at_left(MathTex(expression, font_size=28, color=color), 0.55, y))
-                group.add(Rectangle(width=4.9, height=0.18, stroke_width=0,
-                                    fill_color=GRID, fill_opacity=1).move_to([3, y-0.35, 0]))
-                group.add(Rectangle(width=2.45, height=0.18, stroke_width=0,
-                                    fill_color=color, fill_opacity=1).move_to([1.775, y-0.35, 0]))
-            return group
-
-        vector = indicator(0)
-        amps = amplitudes(r"\alpha=1", r"\beta=0", r"|\psi\rangle=|0\rangle,\quad\theta=0")
-        stage = self.banner("Bloch coordinates describe the state; they are not its amplitudes.", WHITE)
-        self.play(FadeIn(self.chrome), FadeIn(circle), FadeIn(axes), FadeIn(legend),
-                  FadeIn(panel), FadeIn(formula), FadeIn(amps), FadeIn(vector), FadeIn(stage), run_time=0.8)
+        update_values(0)
+        stage = self.banner("A qubit has an amplitude for 0 and an amplitude for 1.", WHITE)
+        self.play(FadeIn(self.chrome), FadeIn(circle), FadeIn(poles), FadeIn(vector),
+                  FadeIn(readouts), FadeIn(stage), run_time=0.8)
         self.wait(0.3)
+        angle = 0.0
+
+        def move_to(target, duration=1.6):
+            nonlocal angle
+            start = angle
+            # Both animations share the same easing and angle. The arrow is
+            # rotated in place; fixed readout anchors prevent layout jumps.
+            self.play(Rotate(vector, angle=-(target-start), about_point=center),
+                      UpdateFromAlphaFunc(readouts, lambda _mob, a: update_values(start+a*(target-start))),
+                      run_time=duration, rate_func=linear)
+            angle = target
+            update_values(target)
 
         self.cue("qubit_superposition")
-        plus = amplitudes(r"\alpha=\frac1{\sqrt2}", r"\beta=\frac1{\sqrt2}",
-                          r"|+\rangle=\frac{|0\rangle+|1\rangle}{\sqrt2}")
-        angle = VGroup(
-            Arc(radius=0.47, start_angle=np.pi/2, angle=-np.pi/2,
-                arc_center=center, color=MUTED, stroke_width=2),
-            MathTex(r"\theta", font_size=23, color=MUTED).move_to(center+[0.48, 0.48, 0]),
-        )
-        # Rotate a single existing object. Do not rebuild arrows each frame.
-        # This is a meridian preparation path with the same endpoint as H|0>;
-        # it does not purport to depict the Hamiltonian evolution of H itself.
-        self.play(Rotate(vector, angle=-np.pi/2, about_point=center),
-                  FadeOut(amps), FadeIn(plus), Create(angle),
-                  Transform(stage, self.banner("At θ = 90°, φ = 0: amplitudes are 1/√2. The state is |+⟩.", BLUE)),
-                  run_time=1.2)
-        amps = plus
-        self.wait(0.3)
+        self.play(Transform(stage, self.banner("Superposition: both outcomes have an amplitude. Measurement gives just one.", WHITE)), run_time=0.35)
+        move_to(np.pi/3)
+        self.wait(0.5)
+        move_to(np.pi/2)
+        self.play(Transform(stage, self.banner("Amplitude × amplitude = probability. Here: about 0.707² = 50% each.", YELLOW)), run_time=0.35)
+        self.wait(0.6)
 
         self.cue("qubit_probabilities")
-        probs = probabilities()
-        self.play(FadeIn(probs), Transform(stage, self.banner(
-            "P(0) = cos²(θ/2), P(1) = sin²(θ/2). At the equator: 50/50.", WHITE)), run_time=0.6)
-        self.wait(0.3)
-
-        self.cue("qubit_phase")
-        minus = amplitudes(r"\alpha=\frac1{\sqrt2}", r"\beta=-\frac1{\sqrt2}",
-                           r"|-\rangle=Z|+\rangle=\frac{|0\rangle-|1\rangle}{\sqrt2}")
-        minus_vector = indicator(np.pi/2, np.pi)
-        # Z rotates about the polar z axis, not around the x-z circle.
-        # Cross-fade ONLY the endpoints; the intervening state leaves this
-        # meridian. The probability bars stay visible and unchanged.
-        self.play(FadeOut(vector), FadeIn(minus_vector), FadeOut(amps), FadeIn(minus),
-                  FadeOut(angle),
-                  Transform(stage, self.banner("Z: |+⟩ → |−⟩ (φ: 0 → π). Endpoints shown; probabilities stay 50/50.", YELLOW)),
-                  run_time=0.7)
-        # Hold this completed view until the NEXT click, including in the full deck.
+        # Continue CLOCKWISE through the bottom and onto the left half.
+        # The state amplitudes follow the same continuous rotation, including
+        # their signs. Do not fold the angle back into the right semicircle.
+        self.play(Transform(stage, self.banner("Keep going around: the probabilities change as the state moves.", WHITE)), run_time=0.35)
+        move_to(np.pi, duration=1.8)
         self.wait(0.5)
+        move_to(3*np.pi/2, duration=1.8)
+        self.play(Transform(stage, self.banner("50/50 again — but one amplitude changed sign. Signs matter for interference.", YELLOW)), run_time=0.35)
+        self.wait(0.8)
+
+        self.cue("qubit_move")
+        self.play(Transform(stage, self.banner("Watch a full turn: amplitudes can be negative; probabilities never are.", WHITE)), run_time=0.35)
+        move_to(2*np.pi, duration=1.8)
+        self.wait(0.5)
+        move_to(5*np.pi/2, duration=1.8)
+        self.play(Transform(stage, self.banner("Grover uses interference to increase the chance of measuring the answer.", GREEN)), run_time=0.35)
+        self.wait(0.8)
 
     def problem(self):
         self.cue("problem")

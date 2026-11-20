@@ -11,6 +11,17 @@ def bloch_vector(theta: float, phi: float = 0) -> np.ndarray:
     return np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)])
 
 
+def qubit_amplitudes(theta: float) -> np.ndarray:
+    """Continuous real amplitudes along a Bloch-meridian rotation.
+
+    Do not wrap theta: after a full turn both amplitudes acquire a common
+    minus sign, representing the same physical state (global phase).
+    """
+    values = np.array([np.cos(theta/2), np.sin(theta/2)])
+    values[np.abs(values) < 1e-12] = 0
+    return values
+
+
 def uniform_state(n: int = N) -> np.ndarray:
     return np.full(n, 1 / np.sqrt(n))
 

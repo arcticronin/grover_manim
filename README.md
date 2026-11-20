@@ -178,25 +178,32 @@ A still-image render is for layout inspection; use a normal video render
 before presenting with Manim Slides.
 
 To jump to a build of an already rendered scene, use `--sasn INDEX`, for example
-`--sasn 3` for the introduction's phase-flip build. It does not render anything.
+`--sasn 3` for the introduction's final movement. It does not render anything.
 The full deck must be rendered again before its saved indices and content
 reflect source edits. Previously exported HTML also remains unchanged until
 rendered and exported again.
 
-The intro is now a **flat front view of the Bloch sphere**: `|0⟩` is north,
-`|1⟩` south, `|+⟩` right, and `|−⟩` left. It shows the x–z meridian;
-the y direction is perpendicular to the screen. Unlike the Grover search-plane
-appendix, these coordinates are Bloch components, not probability amplitudes.
-The state formula is `|ψ⟩ = cos(θ/2)|0⟩ + exp(iφ) sin(θ/2)|1⟩`.
-Thus `|+⟩` is at **90 degrees**, with amplitudes `1/√2` and probabilities `1/2`.
+The intro is deliberately simple: a circle with `|0⟩` at the top and `|1⟩`
+at the bottom, one moving arrow, and two fixed outcome cards. Each card shows
+an amplitude, a probability percentage, and a probability bar. No gates, phase
+symbols, axis names, or angle formulas are shown.
 
-The first movement is a meridian preparation path from `|0⟩` to `|+⟩`.
-The Z gate then changes the relative phase from zero to pi, taking `|+⟩` to
-`|−⟩`. A Z rotation goes out of this viewing plane: the slide cross-fades the
-endpoints while leaving the probability bars unchanged, rather than tracing
-an incorrect path around the meridian. The final view holds until the next
-click. In the full deck, clearing the intro belongs to the next section's
-fragment, after its `cue()`, so the intro does not end on a blank frame.
+The state moves **clockwise around the full circle**, not just along one
+semicircle and back. The four builds are: definite zero; superposition with
+75/25 then 50/50 probabilities; continue through definite one to the left-side
+50/50 state; complete a full turn and continue to the right again. Amplitudes
+and probabilities update throughout every movement, including on the left.
 
-See [IBM's Bloch-sphere explanation](https://learning.quantum.ibm.com/course/general-formulation-of-quantum-information/density-matrices)
-for the polar-angle and azimuth conventions.
+The first right-side equal superposition has amplitudes `(+0.707, +0.707)`.
+The left-side one has `(-0.707, +0.707)`: same probabilities, different relative
+signs, introducing the interference used by Grover. The last movement completes
+a full turn and ends at `(-0.707, -0.707)`. A common minus sign is a global phase,
+so that final state is physically equivalent to the earlier right-side state.
+The notes explain this distinction; no phase formulas are put on the slide.
+
+Probabilities use full-precision amplitudes, not rounded readouts. Zero
+probability has no visible fill. The Bloch-meridian angle is deliberately not
+wrapped: its continuous half-angle amplitudes retain the correct signs beyond
+a full turn. The moving arrow illustrates changing preparations, not an oracle
+gate that would preserve measurement probabilities during a phase-only change.
+The final view remains visible until advancing to the next section.
